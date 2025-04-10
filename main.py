@@ -1,83 +1,90 @@
-import numpy as np
+import cv2
 import cv2 as cv
 import mediapipe as mp
-from scipy.stats import false_discovery_control
+import tkinter as tk
+from PIL import Image, ImageTk
 
+# GUI Window
+window = tk.Tk()
+window.geometry("400x400")
+window.resizable(False, False)
+window.title("Hand Recognition")
+
+# Media Pipe (noch nach genaueren Erklärungen suchen)
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(min_detection_confidence=0.5, min_tracking_confidence=0.5)
-mp_draw = mp.solutions.drawing_utils
+mp_drawing = mp.solutions.drawing_utils
 
+# OpenCV Camera
 cap = cv.VideoCapture(0)
 if not cap.isOpened():
-    print("Cannot open camera")
-    exit()
+    print("Unable to open camera.")
+    exit(0)
 
-finger_tips_ids = [8,12,16]
-showingThree = False
-showingTwo = False
-showingOne = False
+div = tk.Label(window, text="Hand Recognition") # Label = img in html tag
+div.pack() # pack = wie grid Befehle in css
 
-while True:
-    # Capture frame-by-frame
+# Finger Recognition
+def update_frame(): # def = function
+    global cap # global = greift auf die existierende variable zu
     ret, frame = cap.read()
-    # print("Camera stream started. Press 'q' to quit.")
-    # if frame is read correctly ret is True
     if not ret:
-        print("Can't receive frame (stream end?). Exiting ...")
-        break
+        print("Can't receive frame. Exiting ...")
+        return
 
-    # Umwandlung in RGB für MediaPipe
+    frame = cv.flip(frame, 1)
     frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-    frame_flipped = cv.flip(frame_rgb, 1)
+    results = hands.process(frame_rgb)
 
-    results = hands.process(frame_flipped)
+    index_finger = False
+    middle_finger = False
+    ring_finger = False
+
+    showing_one = False
+    showing_two = False
+    showing_three = False
 
     if results.multi_hand_landmarks:
-        #print("Hand erkannt")
-        for landmarks in results.multi_hand_landmarks:
-            mp_draw.draw_landmarks(frame, landmarks, mp_hands.HAND_CONNECTIONS)
+        for hand_landmarks in results.multi_hand_landmarks:
+            mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+            lm = hand_landmarks.landmark
 
-            index_finger = False
-            middle_finger = False
-            ring_finger = False
-
-            landmarks = landmarks.landmark
-
-            if landmarks[8].y < landmarks[6].y:
+            if lm[8].y < lm[6].y:
                 index_finger = True
-            elif landmarks[12].y > landmarks[10].y:
+            if lm[12].y < lm[10].y:
                 middle_finger = True
-            elif landmarks[16].y > landmarks[14].y:
+            if lm[16].y < lm[14].y:
                 ring_finger = True
 
-            if index_finger and middle_finger and ring_finger:
-                showingThree = True
-            elif index_finger and middle_finger and not ring_finger:
-                showingTwo = True
-            elif index_finger and not middle_finger and not ring_finger:
-                showingOne = True
+        if index_finger and middle_finger and ring_finger:
+            showing_three = True
+        elif index_finger and middle_finger:
+            showing_two = True
+        elif index_finger:
+            showing_one = True
+        else:
+            print("Finger Count out of Scope")
 
-    else:
-        print("No hands found")
-
-    frame_bgr = cv.cvtColor(frame_flipped, cv.COLOR_RGB2BGR)
-
-    # Display the resulting frame
-    cv.imshow('mirrored', frame_bgr)
-    if cv.waitKey(1) == ord('q'):
-        break
-
-
-    if showingThree:
-        print("Showing three fingers")
-    elif showingTwo:
-        print("Showing two fingers")
-    elif showingOne:
-        print("Showing one finger")
-    elif showingThree:
-        print("Showing no fingers")
+    #Output
+    if showing_three:
+        print("Showing Three Fingers")
+    if showing_two:
+        print("Showing Two Fingers")
+    if showing_one:
+        print("Showing One Finger")
 
 
-# When everything done, release the capture
+    # Showing it in the GUI
+    img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    imgtk = ImageTk.PhotoImage(image = img)
+    div.image = imgtk
+    div.configure(image=imgtk)
+
+    # frame cycle 10ms
+    window.after(10, update_frame)
+
+update_frame()
+window.mainloop()
+
 cap.release()
-cv.destroyAllWindows()
+cv2.destroyAllWindows()
