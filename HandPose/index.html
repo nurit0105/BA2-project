@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Handpose Demo</title>
+  <title>Handpose Finger Detection</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose"></script>
   <style>
     canvas, video { position: absolute; top: 0; left: 0; }
-    #status { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; }
+    #status { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; font-family: monospace; }
   </style>
 </head>
 <body>
@@ -30,6 +30,10 @@
       });
     }
 
+    function isFingerUp(landmarks, tip, pip) {
+      return landmarks[tip][1] < landmarks[pip][1]; // y: smaller is higher
+    }
+
     async function main() {
       await setupCamera();
       const model = await handpose.load();
@@ -37,32 +41,54 @@
 
       async function detect() {
         const predictions = await model.estimateHands(video, true);
-
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         if (predictions.length > 0) {
           const landmarks = predictions[0].landmarks;
 
-          // Draw points
+          // Draw landmarks
           for (let i = 0; i < landmarks.length; i++) {
-            const [x, y, z] = landmarks[i];
+            const [x, y] = landmarks[i];
             ctx.beginPath();
             ctx.arc(x, y, 5, 0, 2 * Math.PI);
             ctx.fillStyle = 'lime';
             ctx.fill();
+            ctx.fillText(i, x + 5, y - 5); // Optional: show landmark index
           }
 
-          // Example gesture: "Thumbs Up" - check if thumb is extended and above other fingers
-          const thumbTip = landmarks[4];
-          const indexTip = landmarks[8];
-          const pinkyTip = landmarks[20];
+          // Finger detection
+          const index = isFingerUp(landmarks, 8, 6);
+          const middle = isFingerUp(landmarks, 12, 10);
+          const ring = isFingerUp(landmarks, 16, 14);
+          const pinky = isFingerUp(landmarks, 20, 18);
 
-          if (thumbTip[1] < indexTip[1] && thumbTip[1] < pinkyTip[1]) {
-            statusEl.textContent = 'Gesture: Thumbs Up';
-          } else {
-            statusEl.textContent = 'Gesture: (none)';
+          const fingersUp = [ index, middle, ring, pinky].filter(Boolean).length;
+
+          switch (fingersUp) {
+            case 1:
+              console.log("Showing One Finger");
+              break;
+            case 2:
+              console.log("Showing Two Fingers");
+              break;
+            case 3:
+              console.log("Showing Three Fingers");
+              break;
+            case 4:
+              console.log("Showing Four Fingers");
+              break;
+            default:
+              console.log("Finger Count out of Scope");
           }
+
+          // Optional: display which fingers are up
+          const labels = ['Index', 'Middle', 'Ring', 'Pinky'];
+          const statusText = [index, middle, ring, pinky]
+            .map((val, i) => val ? labels[i] : null)
+            .filter(Boolean)
+            .join(', ');
+          statusEl.textContent = statusText || 'No fingers up';
         }
 
         requestAnimationFrame(detect);
