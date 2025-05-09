@@ -1,289 +1,182 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Handpose Finger Detection</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose"></script>
- <style>
-  #videoCanvasContainer {
-    position: relative;
-    width: 640px;
-    height: 480px;
-  }
+    <title>Handpose Finger Detection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose"></script>
+    <style>
+        #videoCanvasContainer {
+            position: relative;
+            width: 640px;
+            height: 480px;
+        }
 
-  canvas, video {
-    position: absolute;
-    top: 0;
-    left: 0;
-  }
+        canvas, video {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
 
-  #status {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    color: white;
-    background: rgba(0,0,0,0.5);
-    padding: 5px;
-    font-family: monospace;
-    z-index: 2;
-  }
+        #status {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            font-family: monospace;
+            z-index: 2;
+        }
 
-  section {
-    margin-top: 20px;
-  }
-</style>
+        section {
+            margin-top: 20px;
+        }
+
+        .circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background-color: #3498db;
+            display: inline-block;
+            margin: 20px;
+        }
+
+        .circle.red {
+            background-color: #e74c3c;
+        }
+
+        .circle.green {
+            background-color: green;
+        }
+
+         .circle.selected {
+            outline: 3px solid yellow;
+        }
+    </style>
 </head>
 <body>
 <section id="videoCanvasContainer">
-<video id="video" autoplay playsinline width="640" height="480"></video>
-  <canvas id="canvas" width="640" height="480"></canvas>
-  <div id="status">Loading...</div>
-  </section>
+    <video id="video" autoplay playsinline width="640" height="480"></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
+    <div id="status">Loading...</div>
+</section>
 <section>
-<input type="button" value="Test Performance" onclick="testPerformance()" />
-  <div id="results"></div>
-  <div id="confusionMatrixTable"></div><div id="metricsDisplay" style="margin-top: 20px;"></div>
-
+    <div class="circle" id="1"></div>
+    <div class="circle" id="2"></div>
+    <input type="button" value="Test Performance" onclick="testPerformance()"/>
+    <div id="results"></div>
+    <div id="confusionMatrixTable"></div>
+    <div id="metricsDisplay" style="margin-top: 20px;"></div>
 </section>
 
-  <script>
+<script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const statusEl = document.getElementById('status');
 
     async function setupCamera() {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      video.srcObject = stream;
-      return new Promise(resolve => {
-        video.onloadedmetadata = () => resolve(video);
-      });
+        const stream = await navigator.mediaDevices.getUserMedia({video: true});
+        video.srcObject = stream;
+        return new Promise(resolve => {
+            video.onloadedmetadata = () => resolve(video);
+        });
     }
 
     function isFingerUp(landmarks, tip, pip) {
-      return landmarks[tip][1] < landmarks[pip][1]; // y: smaller is higher
+        return landmarks[tip][1] < landmarks[pip][1]; // y: smaller is higher
     }
 
+    let selectedCircle = document.getElementById('1');
+    selectedCircle.style.outline = '5px solid yellow';
+
     async function main() {
-      await setupCamera();
-      const model = await handpose.load();
-      statusEl.textContent = 'Model Loaded';
+        await setupCamera();
+        const model = await handpose.load();
+        statusEl.textContent = 'Model Loaded';
 
-      async function detect() {
-        const predictions = await model.estimateHands(video, true);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        async function detect() {
+            const predictions = await model.estimateHands(video, true);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        if (predictions.length > 0) {
-          const landmarks = predictions[0].landmarks;
+            if (predictions.length > 0) {
+                const landmarks = predictions[0].landmarks;
 
-          // Draw landmarks
-          for (let i = 0; i < landmarks.length; i++) {
-            const [x, y] = landmarks[i];
-            ctx.beginPath();
-            ctx.arc(x, y, 5, 0, 2 * Math.PI);
-            ctx.fillStyle = 'lime';
-            ctx.fill();
-            ctx.fillText(i, x + 5, y - 5); // Optional: show landmark index
-          }
+                // Draw landmarks
+                for (let i = 0; i < landmarks.length; i++) {
+                    const [x, y] = landmarks[i];
+                    ctx.beginPath();
+                    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'lime';
+                    ctx.fill();
+                    ctx.fillText(i, x + 5, y - 5);
+                }
 
-          // Finger detection
-          const index = isFingerUp(landmarks, 8, 5);
-          const middle = isFingerUp(landmarks, 12, 9);
-          const ring = isFingerUp(landmarks, 16, 13);
-          const pinky = isFingerUp(landmarks, 20, 18);
+                // Finger detection
+                const index = isFingerUp(landmarks, 8, 5);
+                const middle = isFingerUp(landmarks, 12, 9);
+                const ring = isFingerUp(landmarks, 16, 13);
+                const pinky = isFingerUp(landmarks, 20, 18);
 
-          const fingersUp = [ index, middle, ring, pinky].filter(Boolean).length;
+                const fingersUp = [index, middle, ring, pinky].filter(Boolean).length;
 
-          switch (fingersUp) {
-            case 1:
-              console.log("Showing One Finger");
-              break;
-            case 2:
-              console.log("Showing Two Fingers");
-              break;
-            case 3:
-              console.log("Showing Three Fingers");
-              break;
-            case 4:
-              console.log("Showing Four Fingers");
-              break;
-            default:
-              console.log("Finger Count out of Scope");
-          }
+                document.querySelectorAll('.circle').forEach(circle => {
+                    circle.style.outline = '';
+                });
 
-          // Optional: display which fingers are up
-          const labels = ['Index', 'Middle', 'Ring', 'Pinky'];
-          const statusText = [index, middle, ring, pinky]
-            .map((val, i) => val ? labels[i] : null)
-            .filter(Boolean)
-            .join(', ');
-          statusEl.textContent = statusText || 'No fingers up';
+                handleFingerDetection(fingersUp);
+
+                // display which fingers are up
+                const labels = ['Index', 'Middle', 'Ring', 'Pinky'];
+                const statusText = [index, middle, ring, pinky]
+                    .map((val, i) => val ? labels[i] : null)
+                    .filter(Boolean)
+                    .join(', ');
+                statusEl.textContent = statusText || 'No fingers up';
+            }
+
+            requestAnimationFrame(detect);
         }
 
+        detect();
+    }
 
-        requestAnimationFrame(detect);
-      }
+   function handleFingerDetection(fingersUp) {
+        let newSelection;
 
-      detect();
+        if (fingersUp === 1) {
+            newSelection = document.getElementById('1');
+            if (selectedCircle !== newSelection) {
+                selectedCircle.classList.remove('selected');
+                selectedCircle = newSelection;
+                selectedCircle.classList.add('selected');
+            }
+            console.log("Showing One Finger");
+        } else if (fingersUp === 2) {
+            newSelection = document.getElementById('2');
+            if (selectedCircle !== newSelection) {
+                selectedCircle.classList.remove('selected');
+                selectedCircle = newSelection;
+                selectedCircle.classList.add('selected');
+            }
+            console.log("Showing Two Fingers");
+        } else if (fingersUp === 3) {
+            selectedCircle.classList.remove('red');
+            selectedCircle.classList.add('green');
+            console.log("Showing Three Fingers");
+        } else if (fingersUp === 4) {
+            selectedCircle.classList.remove('green');
+            selectedCircle.classList.add('red');
+            console.log("Showing Four Fingers");
+        } else {
+            console.log("Finger Count out of Scope");
+        }
     }
 
     main();
-
-    const testImages = [
-  { src: '../Test_images/own-fist.jpg', label: 0 },
-  { src: '../Test_images/own-one-finger.jpg', label: 1 },
-  { src: '../Test_images/own-two-fingers.jpg', label: 2 },
-  { src: '../Test_images/own-three-fingers.jpg', label: 3 },
-  { src: '../Test_images/own-four-fingers.jpg', label: 4 }
-];
-
-function createConfusionMatrix(numClasses) {
-  const matrix = Array.from({ length: numClasses }, () =>
-    Array(numClasses).fill(0)
-  );
-  return matrix;
-}
-
-const confusionMatrix = createConfusionMatrix(5); // 5 Klassen: 0–4
-
-  function renderConfusionMatrix(matrix) {
-  const container = document.getElementById('confusionMatrixTable');
-  let html = '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">';
-
-  // Header row
-  html += '<tr><th>Actual \\ Pred</th>';
-  for (let i = 0; i < matrix.length; i++) {
-    html += `<th>${i}</th>`;
-  }
-  html += '</tr>';
-
-  // Matrix rows
-  for (let i = 0; i < matrix.length; i++) {
-    html += `<tr><th>${i}</th>`;
-    for (let j = 0; j < matrix[i].length; j++) {
-      html += `<td>${matrix[i][j]}</td>`;
-    }
-    html += '</tr>';
-  }
-
-  html += '</table>';
-  container.innerHTML = html;
-}
-
-function calculateMetrics(confusionMatrix) {
-  const numClasses = confusionMatrix.length;
-  const total = confusionMatrix.flat().reduce((a, b) => a + b, 0);
-
-  let macroPrecision = 0;
-  let macroRecall = 0;
-  let macroF1 = 0;
-  let macroAccuracy = 0;
-
-  for (let i = 0; i < numClasses; i++) {
-    const TP = confusionMatrix[i][i];
-    const FP = confusionMatrix.reduce((sum, row, r) => r !== i ? sum + row[i] : sum, 0);
-    const FN = confusionMatrix[i].reduce((sum, val, c) => c !== i ? sum + val : sum, 0);
-    const TN = total - TP - FP - FN;
-
-    const precision = TP + FP === 0 ? 0 : TP / (TP + FP);
-    const recall = TP + FN === 0 ? 0 : TP / (TP + FN);
-    const f1 = precision + recall === 0 ? 0 : 2 * (precision * recall) / (precision + recall);
-    const accuracy = (TP + TN) / total;
-
-    macroPrecision += precision;
-    macroRecall += recall;
-    macroF1 += f1;
-    macroAccuracy += accuracy;
-  }
-
-  macroPrecision /= numClasses;
-  macroRecall /= numClasses;
-  macroF1 /= numClasses;
-  macroAccuracy /= numClasses;
-
-  return {
-    macroPrecision: macroPrecision.toFixed(3),
-    macroRecall: macroRecall.toFixed(3),
-    macroF1: macroF1.toFixed(3),
-    macroAccuracy: macroAccuracy.toFixed(3)
-  };
-}
-
-
-
-async function testPerformance() {
-  const model = await handpose.load();
-  const resultsContainer = document.getElementById("results");
-  resultsContainer.innerHTML = "";
-
-  for (const test of testImages) {
-    try {
-      const img = new Image();
-      img.src = test.src;
-
-      await img.decode();
-
-      const predictions = await model.estimateHands(img);
-      let predicted = 0;
-
-      if (predictions.length > 0) {
-        const landmarks = predictions[0].landmarks;
-
-        const index = isFingerUp(landmarks, 8, 5);
-        const middle = isFingerUp(landmarks, 12, 9);
-        const ring = isFingerUp(landmarks, 16, 13);
-        const pinky = isFingerUp(landmarks, 20, 18);
-
-        predicted = [index, middle, ring, pinky].filter(Boolean).length;
-      }
-
-      const actual = test.label;
-      confusionMatrix[actual][predicted] += 1; // <- HIER gehört's hin
-
-      const isCorrect = predicted === actual;
-      const resultHtml = `
-        <div style="margin:10px; padding:10px; border:1px solid gray;">
-          <img src="${test.src}" width="150" />
-          <p>Expected: ${actual} Predicted: ${predicted}
-          ${isCorrect ? "Correct" : "Wrong"}</p>
-        </div>
-      `;
-      resultsContainer.innerHTML += resultHtml;
-
-    } catch (err) {
-      console.error(`Error processing image ${test.src}:`, err);
-      resultsContainer.innerHTML += `
-        <div style="margin:10px; padding:10px; border:1px solid red;">
-          <p> Failed to process image: ${test.src}</p>
-        </div>
-      `;
-    }
-  }
-
-  console.log("Confusion Matrix:");
-  console.table(confusionMatrix);
-  renderConfusionMatrix(confusionMatrix);
-
-  const metrics = calculateMetrics(confusionMatrix);
-
-document.getElementById("metricsDisplay").innerHTML = `
-  <h3>Macro-Averaged Metrics</h3>
-  <ul>
-    <li><strong>Precision:</strong> ${metrics.macroPrecision}</li>
-    <li><strong>Recall:</strong> ${metrics.macroRecall}</li>
-    <li><strong>F1 Score:</strong> ${metrics.macroF1}</li>
-    <li><strong>Accuracy:</strong> ${metrics.macroAccuracy}</li>
-  </ul>
-`;
-
-}
-
-
-
-  </script>
+</script>
 </body>
 </html>
-

@@ -3,17 +3,19 @@ import cv2 as cv
 import mediapipe as mp
 import tkinter as tk
 from PIL import Image, ImageTk
+import numpy as np
+import os
 
 # GUI Window
 window = tk.Tk()
-window.geometry("1500x700")  # Wider to accommodate three sections
+window.geometry("1500x700")
 window.resizable(False, False)
 window.title("Hand Recognition")
 
 # Grid layout setup
-window.grid_columnconfigure(0, weight=1)
+window.grid_columnconfigure(0, weight=2)
 window.grid_columnconfigure(1, weight=1)
-window.grid_columnconfigure(2, weight=1)
+window.grid_columnconfigure(2, weight=6)
 
 # MediaPipe
 mp_hands = mp.solutions.hands
@@ -48,22 +50,179 @@ for i in range(2):
     canvas.pack(pady=20)
     circles.append((canvas, circle_id))
 
-
 # RIGHT: Performance test placeholder
 right_frame = tk.Frame(window)
 right_frame.grid(row=0, column=2, sticky="nsew")
 
-perf_label = tk.Label(right_frame, text="Performance Test", font=("Arial", 14))
+perf_label = tk.Label(right_frame, text="Performance Test", font=("Arial", 12))
 perf_label.pack(pady=20)
 
-def open_camera(index):
-    global cap
-    if cap:
-        cap.release()
-    cap = cv2.VideoCapture(index)
-    if not cap.isOpened():
-        print(f"Unable to open camera {index}")
+result_frame = tk.Frame(right_frame)
+result_frame.pack(padx=10, pady=10)
 
+metrics_label = tk.Label(right_frame, text="", font=("Arial", 12), justify="left")
+metrics_label.pack(pady=10)
+
+# Confusion Matrix Setup
+confusion_matrix = np.zeros((5, 5), dtype=int)
+
+def calculate_metrics(confusion_matrix):
+    num_classes = confusion_matrix.shape[0]
+    total = np.sum(confusion_matrix)
+
+    macro_precision = 0
+    macro_recall = 0
+    macro_f1 = 0
+    macro_accuracy = 0
+
+    for i in range(num_classes):
+        TP = confusion_matrix[i, i]
+        FP = np.sum(confusion_matrix[:, i]) - TP
+        FN = np.sum(confusion_matrix[i, :]) - TP
+        TN = total - TP - FP - FN
+
+        precision = TP / (TP + FP) if (TP + FP) != 0 else 0
+        recall = TP / (TP + FN) if (TP + FN) != 0 else 0
+        f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) != 0 else 0
+        accuracy = (TP + TN) / total if total != 0 else 0
+
+        macro_precision += precision
+        macro_recall += recall
+        macro_f1 += f1
+        macro_accuracy += accuracy
+
+    macro_precision /= num_classes
+    macro_recall /= num_classes
+    macro_f1 /= num_classes
+    macro_accuracy /= num_classes
+
+    return {
+        "macroPrecision": round(macro_precision, 3),
+        "macroRecall": round(macro_recall, 3),
+        "macroF1": round(macro_f1, 3),
+        "macroAccuracy": round(macro_accuracy, 3)
+    }
+
+def clear_results():
+    global confusion_matrix
+    confusion_matrix = np.zeros((5, 5), dtype=int)
+    for widget in result_frame.winfo_children():
+        widget.destroy()
+    metrics_label.config(text="")
+
+
+
+def test_performance():
+    test_gestures = [
+        {"src": "../Test_images/own-fist.jpg", "label": 0},
+        {"src": "../Test_images/own-one-finger.jpg", "label": 1},
+        {"src": "../Test_images/own-two-fingers.jpg", "label": 2},
+        {"src": "../Test_images/own-three-fingers.jpg", "label": 3},
+        {"src": "../Test_images/own-four-fingers.jpg", "label": 4},
+    ]
+
+    global confusion_matrix
+    confusion_matrix = np.zeros((5, 5), dtype=int)
+
+    # Leere das Ergebnis-Frame
+    for widget in result_frame.winfo_children():
+        widget.destroy()
+
+    # Frame für Canvas und Scrollbar
+    canvas_frame = tk.Frame(right_frame)
+    canvas_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+    # Canvas für Scrollen und Scrollbar
+    canvas = tk.Canvas(canvas_frame)
+    scrollbar = tk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    scrollable_frame = tk.Frame(canvas)
+    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+
+    scrollbar.pack(side="right", fill="y")
+    canvas.pack(side="left", fill="both", expand=True)
+
+    # Binde das <Configure>-Ereignis zum Anpassen der Scrollregion
+    scrollable_frame.bind(
+        "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
+
+    # Packe alle UI-Elemente (Buttons, Labels) in den scrollbaren Bereich
+    perf_label.pack(pady=20)
+    result_frame.pack(padx=10, pady=10)
+    metrics_label.pack(pady=10)
+
+    # Anzeigen der Bilder und Vorhersagen
+    for idx, test in enumerate(test_gestures):
+        img = cv2.imread(test["src"])
+        if img is None:
+            continue
+
+        frame_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        results = hands.process(frame_rgb)
+
+        predicted = 0
+        if results.multi_hand_landmarks:
+            for hand_landmarks in results.multi_hand_landmarks:
+                lm = hand_landmarks.landmark
+
+                index_finger = lm[8].y < lm[6].y
+                middle_finger = lm[12].y < lm[10].y
+                ring_finger = lm[16].y < lm[14].y
+                pinky_finger = lm[20].y < lm[17].y
+
+                if index_finger and middle_finger and ring_finger and pinky_finger:
+                    predicted = 4
+                elif index_finger and middle_finger and ring_finger:
+                    predicted = 3
+                elif index_finger and middle_finger:
+                    predicted = 2
+                elif index_finger:
+                    predicted = 1
+
+        actual = test["label"]
+        confusion_matrix[actual][predicted] += 1
+
+        status = "Correct" if predicted == actual else "Something Wrong"
+        color = "green" if predicted == actual else "red"
+
+        # Neue Zeile mit Bild und Vorhersage
+        row = tk.Frame(scrollable_frame)
+        row.pack(fill="x", pady=2)
+
+        # Lade das Bild für die Anzeige
+        image_pil = Image.open(test["src"])
+        image_pil.thumbnail((100, 100))  # Bild auf eine kleinere Größe skalieren
+
+        img_display = ImageTk.PhotoImage(image=image_pil)
+
+        # Labels für Vorhersage und Status
+        img_label = tk.Label(row, image=img_display)
+        img_label.image = img_display  # Wichtig, um Referenz zu behalten
+        img_label.pack(side="left", padx=5)
+
+        tk.Label(row, text=f"#{idx+1}", width=5).pack(side="left")
+        tk.Label(row, text=os.path.basename(test["src"]), width=15).pack(side="left")
+        tk.Label(row, text=f"Expected: {actual}", width=15).pack(side="left")
+        tk.Label(row, text=f"Predicted: {predicted}", width=15).pack(side="left")
+        tk.Label(row, text=status, fg=color, font=("Arial", 12, "bold"), width=5).pack(side="left")
+
+    metrics = calculate_metrics(confusion_matrix)
+    display_text = (
+        f"Precision: {metrics['macroPrecision']:3f}\n"
+        f"Recall: {metrics['macroRecall']:3f}\n"
+        f"F1 Score: {metrics['macroF1']:3f}\n"
+        f"Accuracy: {metrics['macroAccuracy']:3f}"
+    )
+    metrics_label.config(text=display_text)
+
+# Add test buttons
+test_button = tk.Button(right_frame, text="Run Performance Test", command=test_performance)
+test_button.pack(pady=5)
+
+clear_button = tk.Button(right_frame, text="Clear Results", command=clear_results)
+clear_button.pack(pady=5)
 
 current_state = "none"
 
@@ -118,9 +277,7 @@ def update_frame():
         selected_index = 0
         status_label.config(text="Selected LED 1")
 
-    # Apply color changes to selected circle
     if selected_index is not None:
-        # Change state based on gesture
         if showing_three:
             circle_states[selected_index] = "green"
             status_label.config(text=f"LED {selected_index + 1} turned ON")
@@ -129,14 +286,13 @@ def update_frame():
             status_label.config(text=f"LED {selected_index + 1} turned OFF")
 
     for i, (canvas, circle_id) in enumerate(circles):
-        canvas.itemconfig(circle_id, fill=circle_states[i])  # Set color based on state
+        canvas.itemconfig(circle_id, fill=circle_states[i])
         if i == selected_index:
-            canvas.itemconfig(circle_id, outline="yellow")  # Highlight selected
+            canvas.itemconfig(circle_id, outline="yellow")
         else:
-            canvas.itemconfig(circle_id, outline="black")  # Normal border
+            canvas.itemconfig(circle_id, outline="black")
 
-    # Resize for 1/3 width display
-    display_width = 500
+    display_width = 400
     aspect_ratio = frame.shape[1] / frame.shape[0]
     resized_frame = cv2.resize(frame, (display_width, int(display_width / aspect_ratio)))
 
@@ -147,6 +303,13 @@ def update_frame():
 
     window.after(10, update_frame)
 
+def open_camera(index):
+    global cap
+    if cap:
+        cap.release()
+    cap = cv2.VideoCapture(index)
+    if not cap.isOpened():
+        print(f"Unable to open camera {index}")
 
 open_camera(0)
 update_frame()
