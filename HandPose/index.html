@@ -116,10 +116,10 @@
                 }
 
                 // Finger detection
-                const index = isFingerUp(landmarks, 8, 5);
-                const middle = isFingerUp(landmarks, 12, 9);
-                const ring = isFingerUp(landmarks, 16, 13);
-                const pinky = isFingerUp(landmarks, 20, 18);
+                const index = isFingerUp(landmarks, 8, 6);
+                const middle = isFingerUp(landmarks, 12, 10);
+                const ring = isFingerUp(landmarks, 16, 14);
+                const pinky = isFingerUp(landmarks, 20, 17);
 
                 const fingersUp = [index, middle, ring, pinky].filter(Boolean).length;
 
