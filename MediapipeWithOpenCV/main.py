@@ -66,6 +66,7 @@ metrics_label.pack(pady=10)
 # Confusion Matrix Setup
 confusion_matrix = np.zeros((5, 5), dtype=int)
 
+
 def calculate_metrics(confusion_matrix):
     num_classes = confusion_matrix.shape[0]
     total = np.sum(confusion_matrix)
@@ -103,6 +104,7 @@ def calculate_metrics(confusion_matrix):
         "macroAccuracy": round(macro_accuracy, 3)
     }
 
+
 def clear_results():
     global confusion_matrix
     confusion_matrix = np.zeros((5, 5), dtype=int)
@@ -111,14 +113,52 @@ def clear_results():
     metrics_label.config(text="")
 
 
-
 def test_performance():
     test_gestures = [
+        # not 1 to 4 fingers (a fist)
         {"src": "../Test_images/own-fist.jpg", "label": 0},
+        {"src": "../Test_images/0-person-01.jpg", "label": 0},
+        {"src": "../Test_images/0-person-02.jpg", "label": 0},
+        {"src": "../Test_images/0-person-03.jpg", "label": 0},
+        {"src": "../Test_images/0-person-04.jpg", "label": 0},
+        {"src": "../Test_images/0-person-05.jpg", "label": 0},
+        {"src": "../Test_images/0-person-06.jpg", "label": 0},
+
+        # showing one finger
         {"src": "../Test_images/own-one-finger.jpg", "label": 1},
+        {"src": "../Test_images/1-person-01.jpg", "label": 1},
+        {"src": "../Test_images/1-person-02.jpg", "label": 1},
+        {"src": "../Test_images/1-person-03.jpg", "label": 1},
+        {"src": "../Test_images/1-person-04.jpg", "label": 1},
+        {"src": "../Test_images/1-person-05.jpg", "label": 1},
+        {"src": "../Test_images/1-person-06.jpg", "label": 1},
+
+        # showing two fingers
         {"src": "../Test_images/own-two-fingers.jpg", "label": 2},
+        {"src": "../Test_images/2-person-01.jpg", "label": 2},
+        {"src": "../Test_images/2-person-02.jpg", "label": 2},
+        {"src": "../Test_images/2-person-03.jpg", "label": 2},
+        {"src": "../Test_images/2-person-04.jpg", "label": 2},
+        {"src": "../Test_images/2-person-05.jpg", "label": 2},
+        {"src": "../Test_images/2-person-06.jpg", "label": 2},
+
+        # showing three fingers
         {"src": "../Test_images/own-three-fingers.jpg", "label": 3},
+        {"src": "../Test_images/3-person-01.jpg", "label": 3},
+        {"src": "../Test_images/3-person-02.jpg", "label": 3},
+        {"src": "../Test_images/3-person-03.jpg", "label": 3},
+        {"src": "../Test_images/3-person-04.jpg", "label": 3},
+        {"src": "../Test_images/3-person-05.jpg", "label": 3},
+        {"src": "../Test_images/3-person-06.jpg", "label": 3},
+
+        # showing four fingers
         {"src": "../Test_images/own-four-fingers.jpg", "label": 4},
+        {"src": "../Test_images/4-person-01.jpg", "label": 4},
+        {"src": "../Test_images/4-person-02.jpg", "label": 4},
+        {"src": "../Test_images/4-person-03.jpg", "label": 4},
+        {"src": "../Test_images/4-person-04.jpg", "label": 4},
+        {"src": "../Test_images/4-person-05.jpg", "label": 4},
+        {"src": "../Test_images/4-person-06.jpg", "label": 4},
     ]
 
     global confusion_matrix
@@ -184,7 +224,7 @@ def test_performance():
         actual = test["label"]
         confusion_matrix[actual][predicted] += 1
 
-        status = "Correct" if predicted == actual else "Something Wrong"
+        status = "Correct" if predicted == actual else "Wrong"
         color = "green" if predicted == actual else "red"
 
         # Neue Zeile mit Bild und Vorhersage
@@ -202,7 +242,7 @@ def test_performance():
         img_label.image = img_display  # Wichtig, um Referenz zu behalten
         img_label.pack(side="left", padx=5)
 
-        tk.Label(row, text=f"#{idx+1}", width=5).pack(side="left")
+        tk.Label(row, text=f"#{idx + 1}", width=5).pack(side="left")
         tk.Label(row, text=os.path.basename(test["src"]), width=15).pack(side="left")
         tk.Label(row, text=f"Expected: {actual}", width=15).pack(side="left")
         tk.Label(row, text=f"Predicted: {predicted}", width=15).pack(side="left")
@@ -217,6 +257,7 @@ def test_performance():
     )
     metrics_label.config(text=display_text)
 
+
 # Add test buttons
 test_button = tk.Button(right_frame, text="Run Performance Test", command=test_performance)
 test_button.pack(pady=5)
@@ -225,6 +266,7 @@ clear_button = tk.Button(right_frame, text="Clear Results", command=clear_result
 clear_button.pack(pady=5)
 
 current_state = "none"
+
 
 def update_frame():
     global cap
@@ -303,6 +345,7 @@ def update_frame():
 
     window.after(10, update_frame)
 
+
 def open_camera(index):
     global cap
     if cap:
@@ -310,6 +353,7 @@ def open_camera(index):
     cap = cv2.VideoCapture(index)
     if not cap.isOpened():
         print(f"Unable to open camera {index}")
+
 
 open_camera(0)
 update_frame()
