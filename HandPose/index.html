@@ -105,15 +105,20 @@
             if (predictions.length > 0) {
                 const landmarks = predictions[0].landmarks;
 
-                // Draw landmarks
+
+                // Draws Landmarks
                 for (let i = 0; i < landmarks.length; i++) {
                     const [x, y] = landmarks[i];
+
+                    const mirroredX = canvas.width - x;
+
                     ctx.beginPath();
-                    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                    ctx.arc(mirroredX, y, 5, 0, 2 * Math.PI);
                     ctx.fillStyle = 'lime';
                     ctx.fill();
-                    ctx.fillText(i, x + 5, y - 5);
+                    ctx.fillText(i, mirroredX + 5, y - 5);
                 }
+
 
                 // Finger detection
                 const index = isFingerUp(landmarks, 8, 6);
