@@ -5,8 +5,9 @@ Campus Wien.
 
 Bachelor Degree Program: Computer Science and Digital Communications
 
-## Dependencies
+It was developed using PyCharm Professional: https://www.jetbrains.com/pycharm/ and the Interpreter Version Python 3.12
 
+## Dependencies
 To run this project successfully after cloning it these steps are recommended
 to be followed beforehand. 
 
@@ -15,8 +16,11 @@ Here is a link on how to do it: https://python.land/virtual-environments/virtual
 
 2. Run **pip install -r requirements.txt**
 
-## The Project
+### Caution
+It can be possible to run both Systems simultaneously, but when you only have one camera available there could be
+some blockage. Please run either of the systems but not both at the same time. 
 
+## The Project
 This Project shows two implementation. One with MediaPipe and OpenCV developed in Python 
 and one with TensorFlow.js Handpose model developed in Javascript. 
 
