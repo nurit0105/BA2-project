@@ -1,0 +1,47 @@
+ #videoCanvasContainer {
+            position: relative;
+            width: 640px;
+            height: 480px;
+        }
+
+        canvas, video {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #status {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            font-family: monospace;
+            z-index: 2;
+        }
+
+        section {
+            margin-top: 20px;
+        }
+
+        .circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background-color: #3498db;
+            display: inline-block;
+            margin: 20px;
+        }
+
+        .circle.red {
+            background-color: #e74c3c;
+        }
+
+        .circle.green {
+            background-color: green;
+        }
+
+        .circle.selected {
+            outline: 3px solid yellow;
+        }
