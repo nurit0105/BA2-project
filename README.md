@@ -16,6 +16,13 @@ Here is a link on how to do it: https://python.land/virtual-environments/virtual
 
 2. Run **pip install -r requirements.txt**
 
+Here is an explanation how to do it in Windows:
+```shell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
 ### Caution
 It can be possible to run both Systems simultaneously, but when you only have one camera available there could be
 some blockage. Please run either of the systems but not both at the same time. 
